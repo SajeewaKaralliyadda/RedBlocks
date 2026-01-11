@@ -8,6 +8,30 @@
 **Delete** tasks you no longer need
 **Track** task statistics in real-time
 
+## Technology Stack
+
+**Frontend**
+
+- React 18
+- Tailwind CSS
+- JavaScript (ES6+)
+
+**Backend**
+
+- ASP.NET Core 8
+- REST API
+- Dependency Injection
+
+**Database**
+
+- MongoDB (Atlas / Local)
+
+**Tools**
+
+- Swagger
+- Git
+- npm
+
 ## Features
 
 - Create tasks with title and description
@@ -66,7 +90,8 @@ Data access and external dependencies
 
 **Purpose**: Handle HTTP communication
 
-**Files**: 
+**Files**:
+
 - TasksController.cs
 
 **Responsibilities**:
@@ -98,7 +123,7 @@ public async Task<ActionResult<IEnumerable<TaskItem>>> GetAll()
 - CreateTaskDto.cs
 - UpdateTaskDto.cs
 
-**Responsibilities**: 
+**Responsibilities**:
 
 - Implement business rules
 - Coordinate between API and Domain
@@ -192,8 +217,8 @@ public async Task<TaskItem> CreateAsync(TaskItem task)
 2. Frontend calls: POST http://localhost:5119/api/tasks
    ```json
    {
-       "title": "Buy groceries",
-       "description": "Milk, bread, eggs"
+     "title": "Buy groceries",
+     "description": "Milk, bread, eggs"
    }
    ```
    ↓
@@ -383,20 +408,21 @@ public class SqlTaskRepository : ITaskRepository
 
 ### 4. DTOs (Data Transfer Objects)
 
-**What are DTOs?** 
+**What are DTOs?**
 DTOs are simple objects that carry data between layers, separate from domain entities.
 
 **Why use DTOs?**
 
 **Without DTOs (Bad):**
+
 ```json
 // Client sends entire TaskItem
 {
-    "id": "507f...",        // Client shouldn't set ID!
-    "title": "Task",
-    "status": 5,            // Invalid status!
-    "createdAt": "2020-01-01",  // Shouldn't modify creation date!
-    "updatedAt": null
+  "id": "507f...", // Client shouldn't set ID!
+  "title": "Task",
+  "status": 5, // Invalid status!
+  "createdAt": "2020-01-01", // Shouldn't modify creation date!
+  "updatedAt": null
 }
 ```
 
