@@ -15,7 +15,10 @@
 - Toggle task status (Pending ↔ Completed)
 - Delete tasks
 - View real-time statistics
-- Responsive design for all devices ### Technical Features
+- Responsive design for all devices
+
+### Technical Features
+
 - 4-tier architecture
 - Async operations throughout
 - Dependency injection
@@ -62,7 +65,10 @@ Data access and external dependencies
 #### API Layer
 
 **Purpose**: Handle HTTP communication
-**Files**: - TasksController.cs
+
+**Files**: 
+- TasksController.cs
+
 **Responsibilities**:
 
 - Receive HTTP requests
@@ -73,7 +79,14 @@ Data access and external dependencies
 
 **Example**:
 
-[HttpGet] public async Task<ActionResult<IEnumerable<TaskItem>>> GetAll() { var tasks = await \_taskService.GetAllTasksAsync(); return Ok(tasks); }
+```csharp
+[HttpGet]
+public async Task<ActionResult<IEnumerable<TaskItem>>> GetAll()
+{
+    var tasks = await _taskService.GetAllTasksAsync();
+    return Ok(tasks);
+}
+```
 
 #### Application Layer
 
@@ -85,19 +98,21 @@ Data access and external dependencies
 - CreateTaskDto.cs
 - UpdateTaskDto.cs
 
-**Responsibilities**: - Implement business rules
+**Responsibilities**: 
 
+- Implement business rules
 - Coordinate between API and Domain
 - Data transformation (Entity ↔ DTO)
 - Input validation
 
 **Example**:
 
+```csharp
 public async Task<TaskItem> CreateTaskAsync(CreateTaskDto taskDto)
 {
-// Business rule: Title is required
-if (string.IsNullOrWhiteSpace(taskDto.Title))
-throw new ArgumentException("Title is required");
+    // Business rule: Title is required
+    if (string.IsNullOrWhiteSpace(taskDto.Title))
+        throw new ArgumentException("Title is required");
 
     var task = new TaskItem
     {
@@ -108,8 +123,8 @@ throw new ArgumentException("Title is required");
     };
 
     return await _repository.CreateAsync(task);
-
 }
+```
 
 #### Domain Layer
 
@@ -127,21 +142,23 @@ throw new ArgumentException("Title is required");
 
 **Example**:
 
+```csharp
 public class TaskItem
 {
-public string Id { get; set; }
-public string Title { get; set; }
-public string Description { get; set; }
-public TaskStatus Status { get; set; }
-public DateTime CreatedAt { get; set; }
-public DateTime? UpdatedAt { get; set; }
+    public string Id { get; set; }
+    public string Title { get; set; }
+    public string Description { get; set; }
+    public TaskStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 }
 
 public enum TaskStatus
 {
-Pending = 0,
-Completed = 1
+    Pending = 0,
+    Completed = 1
 }
+```
 
 #### Infrastructure Layer
 
@@ -150,7 +167,9 @@ Completed = 1
 
 - TaskRepository.cs
 - MongoDbSettings.cs
-  **Responsibilities**:
+
+**Responsibilities**:
+
 - Database operations
 - External API calls
 - File system access
@@ -158,25 +177,29 @@ Completed = 1
 
 **Example**:
 
+```csharp
 public async Task<TaskItem> CreateAsync(TaskItem task)
 {
-await \_tasks.InsertOneAsync(task);
-return task;
+    await _tasks.InsertOneAsync(task);
+    return task;
 }
+```
 
 ## Data Flow Example when a user creates a task:
 
 1. User fills form and clicks "Create Task" (React UI)
    ↓
 2. Frontend calls: POST http://localhost:5119/api/tasks
+   ```json
    {
-   "title": "Buy groceries",
-   "description": "Milk, bread, eggs"
+       "title": "Buy groceries",
+       "description": "Milk, bread, eggs"
    }
+   ```
    ↓
 3. TasksController receives request (API Layer)
    - Validates the request
-   - Calls: \_taskService.CreateTaskAsync(taskDto)
+   - Calls: `_taskService.CreateTaskAsync(taskDto)`
      ↓
 4. TaskService processes the request (Application Layer)
    - Validates business rules (title not empty)
@@ -184,7 +207,7 @@ return task;
    - Generates new ID
    - Sets status to Pending
    - Sets CreatedAt timestamp
-   - Calls: \_repository.CreateAsync(task)
+   - Calls: `_repository.CreateAsync(task)`
      ↓
 5. TaskRepository saves to database (Infrastructure Layer)
    - Connects to MongoDB
@@ -204,23 +227,24 @@ Async operations allow the application to handle multiple requests without block
 
 **Where we use async:**
 
+```csharp
 // In TaskService.cs
 public async Task<TaskItem> CreateTaskAsync(CreateTaskDto taskDto)
 {
-var task = new TaskItem { /_ ... _/ };
+    var task = new TaskItem { /* ... */ };
 
     // This operation doesn't block the thread
     return await _repository.CreateAsync(task);
-
 }
 
 // In TaskRepository.cs
 public async Task<TaskItem> CreateAsync(TaskItem task)
 {
-// MongoDB operation is async
-await \_tasks.InsertOneAsync(task);
-return task;
+    // MongoDB operation is async
+    await _tasks.InsertOneAsync(task);
+    return task;
 }
+```
 
 **Benefits:**
 
@@ -249,17 +273,20 @@ Dependency Injection (DI) is a design pattern where dependencies are "injected" 
 
 **Step 1: Define interface (Domain Layer)**
 
+```csharp
 public interface ITaskRepository
 {
-Task<TaskItem> CreateAsync(TaskItem task);
-// ... other methods
+    Task<TaskItem> CreateAsync(TaskItem task);
+    // ... other methods
 }
+```
 
 **Step 2: Implement interface (Infrastructure Layer)**
 
+```csharp
 public class TaskRepository : ITaskRepository
 {
-private readonly IMongoCollection<TaskItem> \_tasks;
+    private readonly IMongoCollection<TaskItem> _tasks;
 
     public TaskRepository(IMongoDatabase database)
     {
@@ -271,28 +298,31 @@ private readonly IMongoCollection<TaskItem> \_tasks;
         await _tasks.InsertOneAsync(task);
         return task;
     }
-
 }
+```
 
 **Step 3: Register in Program.cs**
 
+```csharp
 // Tell .NET: "When someone asks for ITaskRepository, give them TaskRepository"
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<ITaskService, TaskService>();
+```
 
 **Step 4: Inject into controller (API Layer)**
 
+```csharp
 public class TasksController : ControllerBase
 {
-private readonly ITaskService \_taskService;
+    private readonly ITaskService _taskService;
 
     // .NET automatically provides TaskService instance
     public TasksController(ITaskService taskService)
     {
         _taskService = taskService;
     }
-
 }
+```
 
 **Benefits:**
 
@@ -308,22 +338,21 @@ The Repository Pattern abstracts data access logic, making the application indep
 
 **Our implementation:**
 
+```csharp
 // Interface defines what operations are available
-
 public interface ITaskRepository
 {
-Task<IEnumerable<TaskItem>> GetAllAsync();
-Task<TaskItem> GetByIdAsync(string id);
-Task<TaskItem> CreateAsync(TaskItem task);
-Task<TaskItem> UpdateAsync(TaskItem task);
-Task<bool> DeleteAsync(string id);
+    Task<IEnumerable<TaskItem>> GetAllAsync();
+    Task<TaskItem> GetByIdAsync(string id);
+    Task<TaskItem> CreateAsync(TaskItem task);
+    Task<TaskItem> UpdateAsync(TaskItem task);
+    Task<bool> DeleteAsync(string id);
 }
 
 // MongoDB implementation
-
 public class TaskRepository : ITaskRepository
 {
-private readonly IMongoCollection<TaskItem> \_tasks;
+    private readonly IMongoCollection<TaskItem> _tasks;
 
     public async Task<TaskItem> CreateAsync(TaskItem task)
     {
@@ -331,8 +360,8 @@ private readonly IMongoCollection<TaskItem> \_tasks;
         return task;
     }
     // ... other implementations
-
 }
+```
 
 **Benefits:**
 
@@ -343,47 +372,55 @@ private readonly IMongoCollection<TaskItem> \_tasks;
 
 **Example: Switching databases**
 
+```csharp
 // Could easily create SQL Server implementation
-
 public class SqlTaskRepository : ITaskRepository
 {
-// Implementation using Entity Framework
-// Business logic code stays the same!
+    // Implementation using Entity Framework
+    // Business logic code stays the same!
 }
+```
 
 ### 4. DTOs (Data Transfer Objects)
 
-**What are DTOs?** DTOs are simple objects that carry data between layers, separate from domain entities.
+**What are DTOs?** 
+DTOs are simple objects that carry data between layers, separate from domain entities.
+
 **Why use DTOs?**
 
 **Without DTOs (Bad):**
+```json
 // Client sends entire TaskItem
 {
-"id": "507f...", // Client shouldn't set ID!
-"title": "Task",
-"status": 5, // Invalid status!
-"createdAt": "2020-01-01", // Shouldn't modify creation date!
-"updatedAt": null
+    "id": "507f...",        // Client shouldn't set ID!
+    "title": "Task",
+    "status": 5,            // Invalid status!
+    "createdAt": "2020-01-01",  // Shouldn't modify creation date!
+    "updatedAt": null
 }
+```
+
 **With DTOs (Good):**
 
+```csharp
 // CreateTaskDto - only what's needed
 public class CreateTaskDto
 {
-public string Title { get; set; }
-public string Description { get; set; }
-// No ID, no timestamps, no status
+    public string Title { get; set; }
+    public string Description { get; set; }
+    // No ID, no timestamps, no status
 }
 
 // Usage in service
 var task = new TaskItem
 {
-Id = ObjectId.GenerateNewId().ToString(), // Server generates
-Title = taskDto.Title,
-Description = taskDto.Description,
-Status = TaskStatus.Pending, // Server sets default
-CreatedAt = DateTime.UtcNow // Server sets timestamp
+    Id = ObjectId.GenerateNewId().ToString(),  // Server generates
+    Title = taskDto.Title,
+    Description = taskDto.Description,
+    Status = TaskStatus.Pending,               // Server sets default
+    CreatedAt = DateTime.UtcNow                // Server sets timestamp
 };
+```
 
 **Benefits:**
 
