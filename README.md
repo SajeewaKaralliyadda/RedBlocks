@@ -8,7 +8,7 @@
 **Delete** tasks you no longer need
 **Track** task statistics in real-time
 
-## Features ### User Features
+## Features
 
 - Create tasks with title and description
 - Edit existing tasks
@@ -73,12 +73,7 @@ Data access and external dependencies
 
 **Example**:
 
-[HttpGet]
-public async Task<ActionResult<IEnumerable<TaskItem>>> GetAll()
-{
-var tasks = await \_taskService.GetAllTasksAsync();
-return Ok(tasks);
-}
+[HttpGet] public async Task<ActionResult<IEnumerable<TaskItem>>> GetAll() { var tasks = await \_taskService.GetAllTasksAsync(); return Ok(tasks); }
 
 #### Application Layer
 
@@ -148,7 +143,7 @@ Pending = 0,
 Completed = 1
 }
 
-#### 4️⃣ Infrastructure Layer
+#### Infrastructure Layer
 
 **Purpose**: External dependencies
 **Files**:
@@ -199,3 +194,212 @@ return task;
 6. Response flows back up through layers
    ↓
 7. Frontend receives the created task and updates UI
+
+## Technical Explanations
+
+### 1. Async Operations
+
+**What are async operations?**
+Async operations allow the application to handle multiple requests without blocking threads, making it more scalable and responsive.
+
+**Where we use async:**
+
+// In TaskService.cs
+public async Task<TaskItem> CreateTaskAsync(CreateTaskDto taskDto)
+{
+var task = new TaskItem { /_ ... _/ };
+
+    // This operation doesn't block the thread
+    return await _repository.CreateAsync(task);
+
+}
+
+// In TaskRepository.cs
+public async Task<TaskItem> CreateAsync(TaskItem task)
+{
+// MongoDB operation is async
+await \_tasks.InsertOneAsync(task);
+return task;
+}
+
+**Benefits:**
+
+- **Non-blocking**: Server can handle other requests while waiting for database
+- **Scalability**: Can handle more concurrent users
+- **Performance**: Better resource utilization
+- **Responsiveness**: UI doesn't freeze while waiting
+
+**Example flow:**
+
+1. User clicks "Create Task"
+2. Frontend sends POST request
+3. Backend receives request (doesn't block)
+4. Async call to MongoDB (thread is freed)
+5. MongoDB processes insert
+6. Response comes back
+7. Backend sends response to frontend
+8. UI updates with new task
+
+### 2. Dependency Injection
+
+**What is Dependency Injection?**
+Dependency Injection (DI) is a design pattern where dependencies are "injected" into a class rather than the class creating them itself.
+
+**How it works in our application:**
+
+**Step 1: Define interface (Domain Layer)**
+
+public interface ITaskRepository
+{
+Task<TaskItem> CreateAsync(TaskItem task);
+// ... other methods
+}
+
+**Step 2: Implement interface (Infrastructure Layer)**
+
+public class TaskRepository : ITaskRepository
+{
+private readonly IMongoCollection<TaskItem> \_tasks;
+
+    public TaskRepository(IMongoDatabase database)
+    {
+        _tasks = database.GetCollection<TaskItem>("Tasks");
+    }
+
+    public async Task<TaskItem> CreateAsync(TaskItem task)
+    {
+        await _tasks.InsertOneAsync(task);
+        return task;
+    }
+
+}
+
+**Step 3: Register in Program.cs**
+
+// Tell .NET: "When someone asks for ITaskRepository, give them TaskRepository"
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+
+**Step 4: Inject into controller (API Layer)**
+
+public class TasksController : ControllerBase
+{
+private readonly ITaskService \_taskService;
+
+    // .NET automatically provides TaskService instance
+    public TasksController(ITaskService taskService)
+    {
+        _taskService = taskService;
+    }
+
+}
+
+**Benefits:**
+
+- **Loose Coupling**: Classes don't depend on concrete implementations
+- **Testability**: Easy to mock dependencies for unit testing
+- **Maintainability**: Change implementation without changing dependents
+- **Flexibility**: Swap implementations easily
+
+### 3. Repository Pattern
+
+**What is the Repository Pattern?**
+The Repository Pattern abstracts data access logic, making the application independent of the data source.
+
+**Our implementation:**
+
+// Interface defines what operations are available
+
+public interface ITaskRepository
+{
+Task<IEnumerable<TaskItem>> GetAllAsync();
+Task<TaskItem> GetByIdAsync(string id);
+Task<TaskItem> CreateAsync(TaskItem task);
+Task<TaskItem> UpdateAsync(TaskItem task);
+Task<bool> DeleteAsync(string id);
+}
+
+// MongoDB implementation
+
+public class TaskRepository : ITaskRepository
+{
+private readonly IMongoCollection<TaskItem> \_tasks;
+
+    public async Task<TaskItem> CreateAsync(TaskItem task)
+    {
+        await _tasks.InsertOneAsync(task);
+        return task;
+    }
+    // ... other implementations
+
+}
+
+**Benefits:**
+
+- **Abstraction**: Business logic doesn't know about MongoDB
+- **Flexibility**: Can switch to SQL Server without changing business logic
+- **Testability**: Can create a fake repository for testing
+- **Centralization**: All data access code in one place
+
+**Example: Switching databases**
+
+// Could easily create SQL Server implementation
+
+public class SqlTaskRepository : ITaskRepository
+{
+// Implementation using Entity Framework
+// Business logic code stays the same!
+}
+
+### 4. DTOs (Data Transfer Objects)
+
+**What are DTOs?** DTOs are simple objects that carry data between layers, separate from domain entities.
+**Why use DTOs?**
+
+**Without DTOs (Bad):**
+// Client sends entire TaskItem
+{
+"id": "507f...", // Client shouldn't set ID!
+"title": "Task",
+"status": 5, // Invalid status!
+"createdAt": "2020-01-01", // Shouldn't modify creation date!
+"updatedAt": null
+}
+**With DTOs (Good):**
+
+// CreateTaskDto - only what's needed
+public class CreateTaskDto
+{
+public string Title { get; set; }
+public string Description { get; set; }
+// No ID, no timestamps, no status
+}
+
+// Usage in service
+var task = new TaskItem
+{
+Id = ObjectId.GenerateNewId().ToString(), // Server generates
+Title = taskDto.Title,
+Description = taskDto.Description,
+Status = TaskStatus.Pending, // Server sets default
+CreatedAt = DateTime.UtcNow // Server sets timestamp
+};
+
+**Benefits:**
+
+- **Security**: Prevents over-posting attacks
+- **Validation**: Only accept what's needed
+- **Clarity**: Clear API contract
+- **Flexibility**: API and database schemas can evolve independently
+
+### 5. Component-Based Architecture (React)
+
+**What is component-based architecture?**
+Breaking down the UI into small, reusable, independent pieces.
+
+**Benefits:**
+
+- **Reusability**: Write once, use anywhere
+- **Maintainability**: Fix a bug in one place
+- **Testability**: Test components in isolation
+- **Readability**: Clear component names = self-documenting code
